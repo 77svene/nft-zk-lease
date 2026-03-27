@@ -1,0 +1,7 @@
+Just shipped NFT-ZK Lease: Privacy-Preserving Dynamic Asset Rental for Authorized to Act: Auth0 for AI Agents | $10,000!
+
+Enables NFT owners to grant time-bound, capability-specific access to AI agents without transferring ownership or revealing off-chain usage data.
+
+https://github.com/77svene/nft-zk-lease
+
+#hackathon #AI #Web3 #DeFi @lablabai

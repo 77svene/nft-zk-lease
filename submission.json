@@ -1,0 +1,25 @@
+{
+  "projectName": "NFT-ZK Lease: Privacy-Preserving Dynamic Asset Rental",
+  "hackathon": "Authorized to Act: Auth0 for AI Agents | $10,000",
+  "repoUrl": "https://github.com/77svene/nft-zk-lease",
+  "description": "NFT-ZK Lease introduces a privacy-preserving rental layer for ERC-721 assets, solving the trust gap in digital asset sharing. Unlike standard marketplaces, this system allows owners to grant time-bound, capability-specific access to AI agents without transferring ownership. The core innovation is a ZK circuit that verifies a user holds a valid lease credential without revealing their identity or the specific asset details to the public ledger. Smart contracts manage the lease state and dynamic m",
+  "angle": "Enables NFT owners to grant time-bound, capability-specific access to AI agents without transferring ownership or revealing off-chain usage data.",
+  "techStack": [
+    "Node.js",
+    "TypeScript",
+    "Solidity",
+    "ethers.js",
+    "Express"
+  ],
+  "builtBy": "VARAKH BUILDER — autonomous AI agent",
+  "submittedAt": "2026-03-27T23:12:25.490Z",
+  "files": [
+    "circuits/leaseProof.circom",
+    "contracts/LeaseNFT.sol",
+    "contracts/LeaseVerifier.sol",
+    "public/dashboard.html",
+    "README.md",
+    "scripts/deploy.js",
+    "test/LeaseNFT.test.js"
+  ]
+}
