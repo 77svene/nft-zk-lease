@@ -14,13 +14,17 @@ contract LeaseNFT is ERC721, Ownable {
 
     mapping(uint256 => Lease) public leases;
     mapping(uint256 => uint256) public totalUsage;
+    address public verifier;
 
     event LeaseGranted(uint256 indexed tokenId, address indexed lessee, uint256 expiry);
     event LeaseExpired(uint256 indexed tokenId, address indexed lessee);
     event LeaseTerminated(uint256 indexed tokenId, address indexed lessee);
     event UsageRecorded(uint256 indexed tokenId, uint32 count);
 
-    constructor() ERC721("LeaseNFT", "LNFT") Ownable(msg.sender) {}
+    constructor(address _verifier) ERC721("LeaseNFT", "LNFT") Ownable(msg.sender) {
+        require(_verifier != address(0), "Invalid verifier");
+        verifier = _verifier;
+    }
 
     function mint(address to, uint256 tokenId) public onlyOwner {
         _safeMint(to, tokenId);
@@ -52,39 +56,22 @@ contract LeaseNFT is ERC721, Ownable {
         emit LeaseTerminated(tokenId, lessee);
     }
 
-    function recordUsage(uint256 tokenId) public {
+    function recordUsage(uint256 tokenId, uint32 count) public {
         require(leases[tokenId].active, "No active lease");
         require(msg.sender == leases[tokenId].lessee, "Not lessee");
         require(block.timestamp <= leases[tokenId].expiry, "Lease expired");
 
-        uint32 currentCount = leases[tokenId].usageCount;
-        leases[tokenId].usageCount = currentCount + 1;
-        totalUsage[tokenId] = totalUsage[tokenId] + 1;
+        leases[tokenId].usageCount += count;
+        totalUsage[tokenId] += count;
 
-        emit UsageRecorded(tokenId, currentCount + 1);
+        emit UsageRecorded(tokenId, count);
     }
 
-    function isLeaseActive(uint256 tokenId) public view returns (bool) {
-        Lease storage lease = leases[tokenId];
-        return lease.active && block.timestamp <= lease.expiry;
-    }
-
-    function getLeaseInfo(uint256 tokenId) public view returns (Lease memory) {
+    function getLease(uint256 tokenId) public view returns (Lease memory) {
         return leases[tokenId];
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) public override {
-        require(!isLeaseActive(tokenId), "Cannot transfer active lease");
-        super.transferFrom(from, to, tokenId);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 tokenId) public override {
-        require(!isLeaseActive(tokenId), "Cannot transfer active lease");
-        super.safeTransferFrom(from, to, tokenId);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) public override {
-        require(!isLeaseActive(tokenId), "Cannot transfer active lease");
-        super.safeTransferFrom(from, to, tokenId, data);
+    function isLeaseActive(uint256 tokenId) public view returns (bool) {
+        return leases[tokenId].active && block.timestamp <= leases[tokenId].expiry;
     }
 }
