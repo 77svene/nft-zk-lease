@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFT-ZK Lease Dashboard</title>
+    <script src="https://cdn.ethers.com/lib/ethers-5.7.2.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #38bdf8; }
+        .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+        .card { background: #1e293b; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #334155; }
+        .card h2 { font-size: 1.25rem; margin-bottom: 1rem; color: #f1f5f9; }
+        .status { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; }
+        .status.connected { background: #059669; color: white; }
+        .status.disconnected { background: #dc2626; color: white; }
+        .lease-item { background: #0f172a; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border: 1px solid #334155; }
+        .lease-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .lease-id { font-weight: 600; color: #38bdf8; }
+        .lease-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; }
+        .detail-label { color: #94a3b8; font-size: 0.875rem; }
+        .detail-value { font-weight: 500; color: #e2e8f0; }
+        .btn { background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; }
+        .btn:hover { background: #2563eb; }
+        .btn:disabled { background: #475569; cursor: not-allowed; }
+        .error { background: #7f1d1d; color: #fca5a5; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+        .loading { color: #94a3b8; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NFT-ZK Lease Dashboard</h1>
+        <p class="subtitle">Privacy-Preserving Dynamic Asset Rental on Sepolia</p>
+        
+        <div class="card">
+            <h2>Connection Status</h2>
+            <div id="connectionStatus" class="status disconnected">Disconnected</div>
+            <div id="contractAddress" style="margin-top: 0.5rem; color: #94a3b8; font-size: 0.875rem;"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Active Leases</h2>
+            <div id="leasesList"></div>
+            <button id="refreshBtn" class="btn" onclick="fetchLeases()">Refresh Data</button>
+        </div>
+        
+        <div class="card">
+            <h2>Usage Statistics</h2>
+            <div id="statsList"></div>
+        </div>
+    </div>
+
+    <script>
+        const SEPOLIA_RPC = "https://rpc.sepolia.org";
+        const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
+        
+        const LEASE_NFT_ABI = [
+            "function verifier() view returns (address)",
+            "function leases(uint256) view returns (address lessee, uint256 expiry, uint32 usageCount, bool active)",
+            "function totalUsage(uint256) view returns (uint256)",
+            "function ownerOf(uint256) view returns (address)",
+            "event LeaseGranted(uint256 indexed tokenId, address indexed lessee, uint256 expiry)",
+            "event LeaseExpired(uint256 indexed tokenId, address indexed lessee)",
+            "event LeaseTerminated(uint256 indexed tokenId, address indexed lessee)",
+            "event UsageRecorded(uint256 indexed tokenId, uint32 count)"
+        ];
+
+        let provider, signer, contract;
+
+        async function init() {
+            try {
+                provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
+                await provider.getNetwork();
+                document.getElementById("connectionStatus").className = "status connected";
+                document.getElementById("connectionStatus").textContent = "Connected to Sepolia";
+                
+                if (CONTRACT_ADDRESS !== "0x0000000000000000000000000000000000000000") {
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, LEASE_NFT_ABI, provider);
+                    document.getElementById("contractAddress").textContent = "Contract: " + CONTRACT_ADDRESS;
+                    await fetchLeases();
+                } else {
+                    document.getElementById("contractAddress").textContent = "Set CONTRACT_ADDRESS in code to connect";
+                }
+            } catch (err) {
+                showError("Connection failed: " + err.message);
+            }
+        }
+
+        async function fetchLeases() {
+            if (!contract) return;
+            
+            const leasesList = document.getElementById("leasesList");
+            const statsList = document.getElementById("statsList");
+            leasesList.innerHTML = '<p class="loading">Loading...</p>';
+            statsList.innerHTML = '<p class="loading">Loading...</p>';
+            
+            try {
+                const leases = [];
+                const stats = [];
+                
+                for (let tokenId = 1; tokenId <= 10; tokenId++) {
+                    try {
+                        const lease = await contract.leases(tokenId);
+                        if (lease.active) {
+                            leases.push({ tokenId, lease });
+                        }
+                        
+                        const totalUsage = await contract.totalUsage(tokenId);
+                        stats.push({ tokenId, totalUsage: totalUsage.toString() });
+                    } catch (e) {
+                        // Token doesn't exist yet
+                    }
+                }
+                
+                if (leases.length === 0) {
+                    leasesList.innerHTML = '<p class="loading">No active leases found</p>';
+                } else {
+                    leasesList.innerHTML = leases.map(l => `
+                        <div class="lease-item">
+                            <div class="lease-header">
+                                <span class="lease-id">Token #${l.tokenId}</span>
+                                <span class="status connected">Active</span>
+                            </div>
+                            <div class="lease-details">
+                                <div><span class="detail-label">Lessee:</span><br><span class="detail-value">${l.lease.lessee}</span></div>
+                                <div><span class="detail-label">Expiry:</span><br><span class="detail-value">${formatTime(l.lease.expiry)}</span></div>
+                                <div><span class="detail-label">Usage Count:</span><br><span class="detail-value">${l.lease.usageCount}</span></div>
+                            </div>
+                        </div>
+                    `).join("");
+                }
+                
+                if (stats.length === 0) {
+                    statsList.innerHTML = '<p class="loading">No usage data</p>';
+                } else {
+                    statsList.innerHTML = stats.map(s => `
+                        <div class="lease-item">
+                            <div class="lease-header">
+                                <span class="lease-id">Token #${s.tokenId}</span>
+                                <span class="detail-label">Total Usage</span>
+                            </div>
+                            <div class="lease-details">
+                                <div><span class="detail-value">${s.totalUsage}</span></div>
+                            </div>
+                        </div>
+                    `).join("");
+                }
+            } catch (err) {
+                showError("Failed to fetch leases: " + err.message);
+            }
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleString();
+        }
+
+        function showError(msg) {
+            const leasesList = document.getElementById("leasesList");
+            leasesList.innerHTML = `<div class="error">${msg}</div>`;
+        }
+
+        init();
+    </script>
+</body>
+</html>
